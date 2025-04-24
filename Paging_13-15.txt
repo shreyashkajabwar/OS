@@ -1,0 +1,293 @@
+Paging
+#include <stdio.h>
+
+int isInFrame(int frame[], int frameSize, int page) {
+    for (int i = 0; i < frameSize; i++) {
+        if (frame[i] == page)
+            return 1;
+    }
+    return 0;
+}
+
+int findLRU(int time[], int frameSize) {
+    int min = time[0], pos = 0;
+    for (int i = 1; i < frameSize; i++) {
+        if (time[i] < min) {
+            min = time[i];
+            pos = i;
+        }
+    }
+    return pos;
+}
+
+int findOptimal(int pages[], int frame[], int current, int frameSize, int total) {
+    int index[10], used[10] = {0};
+
+    for (int i = 0; i < frameSize; i++) {
+        index[i] = -1;
+        for (int j = current + 1; j < total; j++) {
+            if (frame[i] == pages[j]) {
+                index[i] = j;
+                used[i] = 1;
+                break;
+            }
+        }
+        if (!used[i])
+            return i;
+    }
+
+    int farthest = index[0], pos = 0;
+    for (int i = 1; i < frameSize; i++) {
+        if (index[i] > farthest) {
+            farthest = index[i];
+            pos = i;
+        }
+    }
+    return pos;
+}
+
+void printFrame(int frame[], int frameSize) {
+    for (int i = 0; i < frameSize; i++) {
+        if (frame[i] != -1)
+            printf("%d ", frame[i]);
+        else
+            printf("- ");
+    }
+    printf("\n");
+}
+
+void printStats(char name[], int faults, int total) {
+    int hits = total - faults;
+    printf("Total Page Faults (%s): %d\n", name, faults);
+    printf("Total Hits (%s): %d\n", name, hits);
+    printf("Page Fault %%: %.2f%%\n", (faults * 100.0) / total);
+    printf("Hit %%: %.2f%%\n\n", (hits * 100.0) / total);
+}
+
+void FCFS(int pages[], int total, int frameSize) {
+    int frame[10], index = 0, faults = 0;
+
+    for (int i = 0; i < frameSize; i++) frame[i] = -1;
+
+    printf("\nFCFS:\n");
+    for (int i = 0; i < total; i++) {
+        if (!isInFrame(frame, frameSize, pages[i])) {
+            frame[index] = pages[i];
+            index = (index + 1) % frameSize;
+            faults++;
+        }
+        printf("Page %d: ", pages[i]);
+        printFrame(frame, frameSize);
+    }
+    printStats("FCFS", faults, total);
+}
+
+void LRU(int pages[], int total, int frameSize) {
+    int frame[10], time[10], faults = 0, count = 0;
+
+    for (int i = 0; i < frameSize; i++) {
+        frame[i] = -1;
+        time[i] = 0;
+    }
+
+    printf("\nLRU:\n");
+    for (int i = 0; i < total; i++) {
+        int found = 0;
+        for (int j = 0; j < frameSize; j++) {
+            if (frame[j] == pages[i]) {
+                time[j] = ++count;
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found) {
+            int pos = -1;
+            for (int j = 0; j < frameSize; j++) {
+                if (frame[j] == -1) {
+                    pos = j;
+                    break;
+                }
+            }
+            if (pos == -1)
+                pos = findLRU(time, frameSize);
+
+            frame[pos] = pages[i];
+            time[pos] = ++count;
+            faults++;
+        }
+        printf("Page %d: ", pages[i]);
+        printFrame(frame, frameSize);
+    }
+    printStats("LRU", faults, total);
+}
+
+void Optimal(int pages[], int total, int frameSize) {
+    int frame[10], faults = 0;
+
+    for (int i = 0; i < frameSize; i++) frame[i] = -1;
+
+    printf("\nOptimal:\n");
+    for (int i = 0; i < total; i++) {
+        if (!isInFrame(frame, frameSize, pages[i])) {
+            int pos = -1;
+            for (int j = 0; j < frameSize; j++) {
+                if (frame[j] == -1) {
+                    pos = j;
+                    break;
+                }
+            }
+
+            if (pos == -1)
+                pos = findOptimal(pages, frame, i, frameSize, total);
+
+            frame[pos] = pages[i];
+            faults++;
+        }
+        printf("Page %d: ", pages[i]);
+        printFrame(frame, frameSize);
+    }
+    printStats("Optimal", faults, total);
+}
+
+int main() {
+    int pages[50], total, frameSize, choice;
+
+    printf("Enter number of pages: ");
+    scanf("%d", &total);
+
+    printf("Enter the page reference string:\n");
+    for (int i = 0; i < total; i++) {
+        printf("Page %d: ", i + 1);
+        scanf("%d", &pages[i]);
+    }
+
+    printf("Enter number of frames: ");
+    scanf("%d", &frameSize);
+
+    do {
+        printf("\n--- MENU ---\n");
+        printf("1. FCFS\n2. LRU\n3. Optimal\n4. Exit\nEnter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1: FCFS(pages, total, frameSize); break;
+            case 2: LRU(pages, total, frameSize); break;
+            case 3: Optimal(pages, total, frameSize); break;
+            case 4: printf("Exiting...\n"); break;
+            default: printf("Invalid choice!\n");
+        }
+    } while (choice != 4);
+
+    return 0;
+}
+/*
+Enter number of pages: 14
+Enter the page reference string:
+Page 1: 7
+Page 2: 0
+Page 3: 1
+Page 4: 2
+Page 5: 0
+Page 6: 3
+Page 7: 0
+Page 8: 4
+Page 9: 2
+Page 10: 3
+Page 11: 0
+Page 12: 3
+Page 13: 2
+Page 14: 3
+Enter number of frames: 4
+
+--- MENU ---
+1. FCFS
+2. LRU
+3. Optimal
+4. Exit
+Enter your choice: 1
+
+FCFS:
+Page 7: 7 - - - 
+Page 0: 7 0 - - 
+Page 1: 7 0 1 - 
+Page 2: 7 0 1 2 
+Page 0: 7 0 1 2 
+Page 3: 3 0 1 2 
+Page 0: 3 0 1 2 
+Page 4: 3 4 1 2 
+Page 2: 3 4 1 2 
+Page 3: 3 4 1 2 
+Page 0: 3 4 0 2 
+Page 3: 3 4 0 2 
+Page 2: 3 4 0 2 
+Page 3: 3 4 0 2 
+Total Page Faults (FCFS): 7
+Total Hits (FCFS): 7
+Page Fault %: 50.00%
+Hit %: 50.00%
+
+
+--- MENU ---
+1. FCFS
+2. LRU
+3. Optimal
+4. Exit
+Enter your choice: 2
+
+LRU:
+Page 7: 7 - - - 
+Page 0: 7 0 - - 
+Page 1: 7 0 1 - 
+Page 2: 7 0 1 2 
+Page 0: 7 0 1 2 
+Page 3: 3 0 1 2 
+Page 0: 3 0 1 2 
+Page 4: 3 0 4 2 
+Page 2: 3 0 4 2 
+Page 3: 3 0 4 2 
+Page 0: 3 0 4 2 
+Page 3: 3 0 4 2 
+Page 2: 3 0 4 2 
+Page 3: 3 0 4 2 
+Total Page Faults (LRU): 6
+Total Hits (LRU): 8
+Page Fault %: 42.86%
+Hit %: 57.14%
+
+
+--- MENU ---
+1. FCFS
+2. LRU
+3. Optimal
+4. Exit
+Enter your choice: 3
+
+Optimal:
+Page 7: 7 - - - 
+Page 0: 7 0 - - 
+Page 1: 7 0 1 - 
+Page 2: 7 0 1 2 
+Page 0: 7 0 1 2 
+Page 3: 3 0 1 2 
+Page 0: 3 0 1 2 
+Page 4: 3 0 4 2 
+Page 2: 3 0 4 2 
+Page 3: 3 0 4 2 
+Page 0: 3 0 4 2 
+Page 3: 3 0 4 2 
+Page 2: 3 0 4 2 
+Page 3: 3 0 4 2 
+Total Page Faults (Optimal): 6
+Total Hits (Optimal): 8
+Page Fault %: 42.86%
+Hit %: 57.14%
+
+
+--- MENU ---
+1. FCFS
+2. LRU
+3. Optimal
+4. Exit
+Enter your choice: 
+*/

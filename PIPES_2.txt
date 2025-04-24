@@ -1,0 +1,48 @@
+PIPES
+#include <iostream>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <cstring>
+#include <cstdlib>
+using namespace std;
+
+int main() {
+    int p1[2], p2[2]; char buffer[100];
+    pipe(p1); pipe(p2);
+    pid_t pid = fork();
+
+    if (pid > 0) { // Parent (Process 1)
+        close(p1[0]); close(p2[1]);
+        while (true) {
+            cout << "Process 1, enter message: ";
+            cin.getline(buffer, sizeof(buffer));
+            write(p1[1], buffer, strlen(buffer) + 1);
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 1 sent exit command.\n"; break;
+            }
+            read(p2[0], buffer, sizeof(buffer));
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 1 received exit command.\n"; break;
+            }
+            cout << "Process 1 received: " << buffer << endl;
+        }
+        close(p1[1]); close(p2[0]); wait(nullptr);
+    } else { // Child (Process 2)
+        close(p1[1]); close(p2[0]);
+        while (true) {
+            read(p1[0], buffer, sizeof(buffer));
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 2 received exit command.\n"; break;
+            }
+            cout << "Process 2 received: " << buffer<<endl;
+            cout << "Process 2, enter message: ";
+            cin.getline(buffer, sizeof(buffer));
+            write(p2[1], buffer, strlen(buffer) + 1);
+            if (!strncmp(buffer, "exit", 4) || !strncmp(buffer, "stop", 4)) {
+                cout << "Process 2 sent exit command.\n"; break;
+            }
+        }
+        close(p1[0]); close(p2[1]); exit(0);
+    }
+    return 0;
+}
